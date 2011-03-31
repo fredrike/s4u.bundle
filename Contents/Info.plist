@@ -16,6 +16,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
+	<key>PlexAgentAttributionText</key>
+	<string>
+		&lt;a href=&quot;http://www.s4u.se/&quot;&gt;www.s4u.se&lt;/a&gt;, Svenska Undertexter!&lt;br /&gt;  Sök bland tusentals svenska undertexter.
+	</string>
 	<key>PlexFrameworkVersion</key>
 	<string>2</string>
 	<key>PlexPluginClass</key>

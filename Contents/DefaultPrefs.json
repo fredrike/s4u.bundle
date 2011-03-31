@@ -1,4 +1,5 @@
 [
+/*
         {
                 "id": "langPref1",
                 "label": "Subtitle Language (1)",
@@ -17,4 +18,5 @@
                            "slv","spa","swe","syr","tha","tur","ukr","urd","vie"],
                 "default": "None"
         }        
+*/
 ]
