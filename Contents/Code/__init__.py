@@ -64,8 +64,8 @@ class S4uAgentMovies(Agent.Movies):
 				xml = self.GetFixedXML(url) # to get XML for search result
 				subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
 				if not subtitleResponse.xpath("/xmlresult/movie"): #No match for filename, perhaps we can match the dir name.
-					dir = '/'.join(path.split('/')[:-1])
-					url = SRC_URL %('movie', 'fname', urllib.quote(dir))	# URL for movie name search
+					dir = path.split('/')[-1]
+					url = SRC_URL %('movie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 					Log('Looking for match for File %s and size %d at %s' % (dir, p.size, url))
 					xml = self.GetFixedXML(url) # to get XML for search result
 					subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
