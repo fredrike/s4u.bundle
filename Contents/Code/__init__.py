@@ -2,7 +2,7 @@
 import os, string, hashlib
 import urllib2, urllib, string, random, types, unicodedata, re, datetime
 
-SRC_URL = 'http://www.s4u.se/xml.php?q=%s'
+SRC_URL = 'http://api.s4u.se/Beta/DemoKey/xml/%s/%s/%s/%s'
 #DL_URL = 'http://www.undertexter.se/laddatext.php?id='
 #OS_LANGUAGE_CODES = 'http://www.opensubtitles.org/addons/export_languages.php'
 PLEX_USERAGENT = 'plexapp.com v9.x'
@@ -39,7 +39,7 @@ class S4uAgentMovies(Agent.Movies):
   
   def GetFixedXML(self, url, isHtml=False):		# function for getting XML in the corresponding URL
     xml = HTTP.Request(url)
-    Log("xml in GetFixedXML = %s" % xml)
+    # Log("xml in GetFixedXML = %s" % xml)
     return XML.ElementFromString(xml, isHtml)
 
  
@@ -58,20 +58,31 @@ class S4uAgentMovies(Agent.Movies):
 		#		if 'video_ts' == path.lower().split('/')[-1]:
 		#			path= '/'.join(path.split('/')[:-1])
 				basename = os.path.basename(filename)
-				url = SRC_URL %(urllib.quote(basename))	# URL for movie name search
-				Log('Looking for match for File %s and size %d at %s' % (basename, p.size, url))
+				basename = os.path.splitext(basename)[0] #Remove filetype
+				url = SRC_URL % ('movie', 'fname', urllib.quote(basename), '')	# URL for movie name search
+				Log('Looking for match for File %s at %s' % (basename, url))
 				xml = self.GetFixedXML(url) # to get XML for search result
 				subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
-				if not subtitleResponse.xpath("//file"):
-					basename = os.path.splitext(basename)[0]
-					url = SRC_URL %(urllib.quote(basename))	# URL for movie name search
-					Log('Looking for match for File %s and size %d at %s' % (basename, p.size, url))
+				if not subtitleResponse.xpath("/xmlresult/movie"): #No match for filename, perhaps we can match the dir name.
+					dir = '/'.join(path.split('/')[:-1])
+					url = SRC_URL %('movie', 'fname', urllib.quote(dir))	# URL for movie name search
+					Log('Looking for match for File %s and size %d at %s' % (dir, p.size, url))
 					xml = self.GetFixedXML(url) # to get XML for search result
 					subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
-				if subtitleResponse.xpath("//file"):
-					subUrl = subtitleResponse.xpath('//file')[0].text
-					Log('Trying to download '  + subUrl)
-			#		subFile = HTTP.Request(subUrl)
+				if subtitleResponse.xpath("/xmlresult/movie"):
+					Log('Yes %s matches for movie!' % subtitleResponse.xpath("//info/hits_movie")[0].text)
+					if not subtitleResponse.xpath("//sub/download_file"):
+						Log('No, no subs available for the movie %s ;(' % (subtitleResponse.xpath("//movie/title")[0].text))
+						return
+					Log('Yes %s subs for the movie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_movie_sub")[0].text, subtitleResponse.xpath("//movie/title")[0].text))
+					subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+					subType = subtitleResponse.xpath('//sub/file_type')[0].text
+					Log('Trying to download %s of type %s'  % (subUrl, subType))
+					subFile = HTTP.Request(subUrl)
+					subData = subFile #Let's skip unzipping at this time..
+					p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+				else:
+					Log('No subtitles available for language sv')
 
 			#     for st in subtitleResponse: #remove any subtitle formats we don't recognize
 			#       if st['SubFormat'] not in subtitleExt:
@@ -82,9 +93,7 @@ class S4uAgentMovies(Agent.Movies):
 			#       subUrl = st['SubDownloadLink']
 			#  subGz = HTTP.Request(subUrl, headers={'Accept-Encoding':''}).content
 			# subData = Archive.GzipDecompress(subGz)
-			#  p.subtitles[Locale.Language.Match(st['SubLanguageID'])][subUrl] = Proxy.Media(subData, ext=st['SubFormat'])
-				else:
-					Log('No subtitles available for language sv')
+				
 
 class S4uAgentTV(Agent.TV_Shows):
   name = 'S4u.se'
