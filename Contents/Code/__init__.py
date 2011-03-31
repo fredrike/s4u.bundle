@@ -1,4 +1,4 @@
-#undertexter.se
+#s4u.se
 import os, string, hashlib
 import urllib2, urllib, string, random, types, unicodedata, re, datetime
 
@@ -31,8 +31,8 @@ def Start():
 #  else:
 #    return None
 #  
-class UndertexterAgentMovies(Agent.Movies):
-  name = 'Undertexter.se'
+class S4uAgentMovies(Agent.Movies):
+  name = 'S4u.se'
   languages = [Locale.Language.English]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.imdb']
@@ -86,8 +86,8 @@ class UndertexterAgentMovies(Agent.Movies):
 				else:
 					Log('No subtitles available for language sv')
 
-class UndertexterAgentTV(Agent.TV_Shows):
-  name = 'Undertexter.se'
+class S4uAgentTV(Agent.TV_Shows):
+  name = 'S4u.se'
   languages = [Locale.Language.English]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.thetvdb']
