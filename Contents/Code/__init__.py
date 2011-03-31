@@ -100,6 +100,12 @@ class S4uAgentTV(Agent.TV_Shows):
   languages = [Locale.Language.English]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.thetvdb']
+  
+  def GetFixedXML(self, url, isHtml=False):		# function for getting XML in the corresponding URL
+    xml = HTTP.Request(url)
+    #Log("xml in GetFixedXML = %s" % xml)
+    return XML.ElementFromString(xml, isHtml)
+
 
   def search(self, results, media, lang):
     results.Append(MetadataSearchResult(
@@ -108,30 +114,40 @@ class S4uAgentTV(Agent.TV_Shows):
 
   def update(self, metadata, media, lang):
     HTTP.Headers['User-agent'] = 'plexapp.com v9.0'
-    proxy = XMLRPC.Proxy(OS_API)
+#    proxy = XMLRPC.Proxy(OS_API)
     for s in media.seasons:
       # just like in the Local Media Agent, if we have a date-based season skip for now.
       if int(s) < 1900:
         for e in media.seasons[s].episodes:
           for i in media.seasons[s].episodes[e].items:
             for p in i.parts:
-              token = proxy.LogIn('', '', 'en', OS_PLEX_USERAGENT)['token']
-              langList = [Prefs["langPref1"]]
-              if Prefs["langPref2"] != 'None':
-                langList.append(Prefs["langPref2"])
-              for l in langList:
-                Log('Looking for match for GUID %s and size %d' % (p.openSubtitleHash, p.size))
-                subtitleResponse = proxy.SearchSubtitles(token,[{'sublanguageid':l, 'moviehash':p.openSubtitleHash, 'moviebytesize':str(p.size)}])['data']
-                if subtitleResponse != False:
-                  for st in subtitleResponse: #remove any subtitle formats we don't recognize
-                    if st['SubFormat'] not in subtitleExt:
-                      Log('Removing a subtitle of type: ' + st['SubFormat'])
-                      subtitleResponse.remove(st)
-                  st = sorted(subtitleResponse, key=lambda k: int(k['SubDownloadsCnt']), reverse=True)[0] #most downloaded subtitle file for current language
-                  if st['SubFormat'] in subtitleExt:
-                    subUrl = st['SubDownloadLink']
-                    subGz = HTTP.Request(subUrl, headers={'Accept-Encoding':''}).content
-                    subData = Archive.GzipDecompress(subGz)
-                    p.subtitles[Locale.Language.Match(st['SubLanguageID'])][subUrl] = Proxy.Media(subData, ext=st['SubFormat'])
-                else:
-                  Log('No subtitles available for language ' + l)
+							filename = p.file.decode('utf-8')
+							path = os.path.dirname(filename)
+				#		if 'video_ts' == path.lower().split('/')[-1]:
+				#			path= '/'.join(path.split('/')[:-1])
+							basename = os.path.basename(filename)
+							basename = os.path.splitext(basename)[0] #Remove filetype
+							url = SRC_URL % ('serie', 'fname', urllib.quote(basename), '')	# URL for movie name search
+							Log('Looking for match for file %s at %s' % (basename, url))
+							xml = self.GetFixedXML(url) # to get XML for search result
+							subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
+							if not subtitleResponse.xpath("/xmlresult/serie"): #No match for filename, perhaps we can match the dir name.
+								dir = path.split('/')[-1]
+								url = SRC_URL %('serie', 'fname', urllib.quote(dir), '')	# URL for movie name search
+								Log('Looking for match for dirname %s and size %d at %s' % (dir, p.size, url))
+								xml = self.GetFixedXML(url) # to get XML for search result
+								subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
+							if subtitleResponse.xpath("/xmlresult/serie"):
+								Log('Yes %s matches for serie!' % subtitleResponse.xpath("//info/hits_serie")[0].text)
+								if not subtitleResponse.xpath("//sub/download_file"):
+									Log('No, no subs available for the serie %s ;(' % (subtitleResponse.xpath("//serie/title")[0].text))
+									return
+								Log('Yes %s subs for the serie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_serie_sub")[0].text, subtitleResponse.xpath("//serie/title")[0].text))
+								subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+								subType = subtitleResponse.xpath('//sub/file_type')[0].text
+								Log('Trying to download %s of type %s for %s.S%02dE%02d'  % (subUrl, subType, media.title, int(s), int(e)))
+								subFile = HTTP.Request(subUrl)
+								subData = subFile #Let's skip unzipping at this time..
+								p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+							else:
+								Log('No subtitles available for language sv and serie %s S%02dE%02d' % (media.title, int(s), int(e)))
