@@ -1,5 +1,5 @@
 #s4u.se
-import os, string, hashlib
+import os
 import urllib2, urllib, string, random, types, unicodedata, re, datetime
 
 SRC_URL = 'http://api.s4u.se/Beta/DemoKey/xml/%s/%s/%s/%s'
@@ -13,24 +13,6 @@ def Start():
   HTTP.CacheTime = 0
   HTTP.Headers['User-agent'] = PLEX_USERAGENT
 
-#@expose
-#def GetImdbIdFromHash(openSubtitlesHash, lang):
-#  proxy = XMLRPC.Proxy(OS_API)
-#  try:
-#    os_movieInfo = proxy.CheckMovieHash('',[openSubtitlesHash])
-#  except:
-#    return None
-#    
-#  if os_movieInfo['data'][openSubtitlesHash] != []:
-#    return MetadataSearchResult(
-#      id    = "tt" + str(os_movieInfo['data'][openSubtitlesHash]['MovieImdbID']),
-#      name  = str(os_movieInfo['data'][openSubtitlesHash]['MovieName']),
-#      year  = int(os_movieInfo['data'][openSubtitlesHash]['MovieYear']),
-#      lang  = lang,
-#      score = 90)
-#  else:
-#    return None
-#  
 class S4uAgentMovies(Agent.Movies):
   name = 'S4u.se'
   languages = [Locale.Language.English]
@@ -39,7 +21,7 @@ class S4uAgentMovies(Agent.Movies):
   
   def GetFixedXML(self, url, isHtml=False):		# function for getting XML in the corresponding URL
     xml = HTTP.Request(url)
-    # Log("xml in GetFixedXML = %s" % xml)
+#    Log("xml in GetFixedXML = %s" % xml)
     return XML.ElementFromString(xml, isHtml)
 
  
@@ -73,14 +55,34 @@ class S4uAgentMovies(Agent.Movies):
 					Log('Yes %s matches for movie!' % subtitleResponse.xpath("//info/hits_movie")[0].text)
 					if not subtitleResponse.xpath("//sub/download_file"):
 						Log('No, no subs available for the movie %s ;(' % (subtitleResponse.xpath("//movie/title")[0].text))
-						return
+						continue
 					Log('Yes %s subs for the movie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_movie_sub")[0].text, subtitleResponse.xpath("//movie/title")[0].text))
 					subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
 					subType = subtitleResponse.xpath('//sub/file_type')[0].text
-					Log('Trying to download %s of type %s'  % (subUrl, subType))
-					subFile = HTTP.Request(subUrl)
-					subData = subFile #Let's skip unzipping at this time..
-					p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+					fileName = path + "/" + basename + ".sv." + subType
+					subData = ""
+					Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
+					if os.path.isfile(fileName): #Test if file exists.
+						Log('The file %s already exist, no need to download.' % fileName)
+						try:
+							fd = os.open(fileName,os.O_RDONLY)
+							subData = os.read(fd,os.stat(fileName).st_size)
+							os.close(fd)
+						except Exception, e:
+							Log('An error occurred reading %s file! \n%s' % (fileName,e))
+					else:
+						try:
+							fd = os.open(fileName, os.O_RDWR|os.O_TRUNC|os.O_CREAT)
+							#os.close(fd)
+							#fd = os.open(fileName, os.O_RDWR|os.O_APPEND)
+							subFile = HTTP.Request(subUrl)
+							subData = subFile + " thx erlis." #Let's skip unzipping at this time..
+							os.write(fd,subData) #Save file.					
+							os.close(fd)
+						except Exception, e:
+							Log('An r occurred saving %s file! \n%s' % (fileName,e)) #Load the sub from url rather than file.
+							p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+					p.subtitles[Locale.Language.Match('sv')][basename + ".sv." + subType] = Proxy.LocalFile(fileName)
 				else:
 					Log('No subtitles available for language sv')
 
