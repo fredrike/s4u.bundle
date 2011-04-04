@@ -41,30 +41,20 @@ class S4uAgentMovies(Agent.Movies):
 					url = SRC_URL %(Prefs["apiKey"], 'movie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 					Log('Looking for match for dirname %s @ %s' % (dir, url))
 					subtitleResponse = GetFixedXML(url) # to get XML for search result
+#Insert more search options here.
 				if subtitleResponse.xpath("/xmlresult/movie"):
-					Log('Yes %s matches for movie!' % subtitleResponse.xpath("//info/hits_movie")[0].text)
+					Log('Yes %s matches for movie!' % subtitleResponse.xpath("//info/hits_movie")[0].text)				
 					if not subtitleResponse.xpath("//sub/download_file"):
-						Log('No, no subs available for the movie %s ;(' % (subtitleResponse.xpath("//movie/title")[0].text))
-						continue
-					Log('Yes %s subs for the movie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_movie_sub")[0].text, subtitleResponse.xpath("//movie/title")[0].text))
-					subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
-					subType = subtitleResponse.xpath('//sub/file_type')[0].text
-					fileName = path + "/" + basename + ".sv." + subType
-					Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
-					GetSubtitle(p, subUrl, subType, fileName, basename)
+						Log('No subtitles available for language sv and the movie %s.' % (subtitleResponse.xpath("//movie/title")[0].text))
+					else:
+						Log('Yes %s subs for the movie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_movie_sub")[0].text, subtitleResponse.xpath("//movie/title")[0].text))
+						subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+						subType = subtitleResponse.xpath('//sub/file_type')[0].text
+						fileName = path + "/" + basename + ".sv." + subType
+						Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
+						GetSubtitle(p, subUrl, subType, fileName, basename)
 				else:
-					Log('No subtitles available for language sv')
-
-			#     for st in subtitleResponse: #remove any subtitle formats we don't recognize
-			#       if st['SubFormat'] not in subtitleExt:
-			#         Log('Removing a subtitle of type: ' + st['SubFormat'])
-			#         subtitleResponse.remove(st)
-			#     st = sorted(subtitleResponse, key=lambda k: int(k['SubDownloadsCnt']), reverse=True)[0] #most downloaded subtitle file for current language
-			#     if st['SubFormat'] in subtitleExt:
-			#       subUrl = st['SubDownloadLink']
-			#  subGz = HTTP.Request(subUrl, headers={'Accept-Encoding':''}).content
-			# subData = Archive.GzipDecompress(subGz)
-				
+					Log('No match for %s' % basename)
 
 class S4uAgentTV(Agent.TV_Shows):
   name = 'S4u.se'
@@ -97,19 +87,20 @@ class S4uAgentTV(Agent.TV_Shows):
 								url = SRC_URL %(Prefs["apiKey"], 'serie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 								Log('Looking for match for dirname %s @ %s' % (dir, url))
 								subtitleResponse  = GetFixedXML(url) # to get XML for search result
+#Insert more search options here.
 							if subtitleResponse.xpath("/xmlresult/serie"):
 								Log('Yes %s matches for serie!' % subtitleResponse.xpath("//info/hits_serie")[0].text)
 								if not subtitleResponse.xpath("//sub/download_file"):
-									Log('No, no subs available for the serie %s ;(' % (subtitleResponse.xpath("//serie/title")[0].text))
-									return
-								Log('Yes %s subs for the serie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_serie_sub")[0].text, subtitleResponse.xpath("//serie/title")[0].text))
-								subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
-								subType = subtitleResponse.xpath('//sub/file_type')[0].text
-								fileName = path + "/" + basename + ".sv." + subType
-								Log('Trying to download %s of type %s for %s.S%02dE%02d'  % (subUrl, subType, media.title, int(s), int(e)))
-								GetSubtitle(p, subUrl, subType, fileName, basename)
+									Log('No subtitles available for language sv and serie %s S%02dE%02d' % (media.title, int(s), int(e)))
+								else:
+									Log('Yes %s subs for the serie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_serie_sub")[0].text, subtitleResponse.xpath("//serie/title")[0].text))
+									subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+									subType = subtitleResponse.xpath('//sub/file_type')[0].text
+									fileName = path + "/" + basename + ".sv." + subType
+									Log('Trying to download %s of type %s for %s.S%02dE%02d'  % (subUrl, subType, media.title, int(s), int(e)))
+									GetSubtitle(p, subUrl, subType, fileName, basename)
 							else:
-								Log('No subtitles available for language sv and serie %s S%02dE%02d' % (media.title, int(s), int(e)))
+								Log('No match for %s' % basename)
 
 def GetFixedXML(url, isHtml=False):		# function for getting XML in the corresponding URL
 	xml = HTTP.Request(url)
@@ -130,8 +121,9 @@ def GetSubtitle(part, subUrl, subType, fileName, basename):
 	else:
 		try:
 			fd = os.open(fileName, os.O_RDWR|os.O_TRUNC|os.O_CREAT)
-			subFile = HTTP.Request(subUrl)
+			subFile = HTTP.Request(subUrl).content
 			subData = subFile + " " #Let's skip unzipping at this time..
+#	 		subData = Archive.GzipDecompress(subFile)
 			os.write(fd,subData) #Save file.					
 			os.close(fd)
 		except Exception, e:
