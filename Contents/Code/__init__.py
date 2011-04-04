@@ -3,8 +3,6 @@ import os
 import urllib2, urllib, string, random, types, unicodedata, re, datetime
 
 SRC_URL = 'http://api.s4u.se/Beta/DemoKey/xml/%s/%s/%s/%s'
-#DL_URL = 'http://www.undertexter.se/laddatext.php?id='
-#OS_LANGUAGE_CODES = 'http://www.opensubtitles.org/addons/export_languages.php'
 PLEX_USERAGENT = 'plexapp.com v9.x'
 subtitleExt       = ['utf','utf8','utf-8','sub','srt','smi','rt','ssa','aqt','jss','ass','idx']
  
@@ -147,9 +145,29 @@ class S4uAgentTV(Agent.TV_Shows):
 								Log('Yes %s subs for the serie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_serie_sub")[0].text, subtitleResponse.xpath("//serie/title")[0].text))
 								subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
 								subType = subtitleResponse.xpath('//sub/file_type')[0].text
-								Log('Trying to download %s of type %s for %s.S%02dE%02d'  % (subUrl, subType, media.title, int(s), int(e)))
-								subFile = HTTP.Request(subUrl)
-								subData = subFile #Let's skip unzipping at this time..
-								p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+								fileName = path + "/" + basename + ".sv." + subType
+								subData = ""
+								Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
+								if os.path.isfile(fileName): #Test if file exists.
+									Log('The file %s already exist, no need to download.' % fileName)
+									try:
+										fd = os.open(fileName,os.O_RDONLY)
+										subData = os.read(fd,os.stat(fileName).st_size)
+										os.close(fd)
+									except Exception, e:
+										Log('An error occurred reading %s file! \n%s' % (fileName,e))
+								else:
+									try:
+										fd = os.open(fileName, os.O_RDWR|os.O_TRUNC|os.O_CREAT)
+										#os.close(fd)
+										#fd = os.open(fileName, os.O_RDWR|os.O_APPEND)
+										subFile = HTTP.Request(subUrl)
+										subData = subFile + " " #Let's skip unzipping at this time..
+										os.write(fd,subData) #Save file.					
+										os.close(fd)
+									except Exception, e:
+										Log('An r occurred saving %s file! \n%s' % (fileName,e)) #Load the sub from url rather than file.
+										p.subtitles[Locale.Language.Match('sv')][subUrl] = Proxy.Media(subData, ext=subType)
+								p.subtitles[Locale.Language.Match('sv')][basename + ".sv." + subType] = Proxy.LocalFile(fileName)
 							else:
 								Log('No subtitles available for language sv and serie %s S%02dE%02d' % (media.title, int(s), int(e)))
