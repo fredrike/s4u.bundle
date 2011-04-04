@@ -2,7 +2,7 @@
 import os
 import urllib2, urllib, string, random, types, unicodedata, re, datetime
 
-SRC_URL = 'http://api.s4u.se/Beta/DemoKey/xml/%s/%s/%s/%s'
+SRC_URL = 'http://api.s4u.se/1.0/%s/xml/%s/%s/%s/%s'
 PLEX_USERAGENT = 'plexapp.com v9.x'
 subtitleExt       = ['utf','utf8','utf-8','sub','srt','smi','rt','ssa','aqt','jss','ass','idx']
  
@@ -39,13 +39,13 @@ class S4uAgentMovies(Agent.Movies):
 		#			path= '/'.join(path.split('/')[:-1])
 				basename = os.path.basename(filename)
 				basename = os.path.splitext(basename)[0] #Remove filetype
-				url = SRC_URL % ('movie', 'fname', urllib.quote(basename), '')	# URL for movie name search
+				url = SRC_URL % (Prefs["apiKey"], 'movie', 'fname', urllib.quote(basename), '')	# URL for movie name search
 				Log('Looking for match for File %s at %s' % (basename, url))
 				xml = self.GetFixedXML(url) # to get XML for search result
 				subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
 				if not subtitleResponse.xpath("/xmlresult/movie"): #No match for filename, perhaps we can match the dir name.
 					dir = path.split('/')[-1]
-					url = SRC_URL %('movie', 'fname', urllib.quote(dir), '')	# URL for movie name search
+					url = SRC_URL %(Prefs["apiKey"], 'movie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 					Log('Looking for match for File %s and size %d at %s' % (dir, p.size, url))
 					xml = self.GetFixedXML(url) # to get XML for search result
 					subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
@@ -127,13 +127,13 @@ class S4uAgentTV(Agent.TV_Shows):
 				#			path= '/'.join(path.split('/')[:-1])
 							basename = os.path.basename(filename)
 							basename = os.path.splitext(basename)[0] #Remove filetype
-							url = SRC_URL % ('serie', 'fname', urllib.quote(basename), '')	# URL for movie name search
+							url = SRC_URL % (Prefs["apiKey"], 'serie', 'fname', urllib.quote(basename), '')	# URL for movie name search
 							Log('Looking for match for file %s at %s' % (basename, url))
 							xml = self.GetFixedXML(url) # to get XML for search result
 							subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
 							if not subtitleResponse.xpath("/xmlresult/serie"): #No match for filename, perhaps we can match the dir name.
 								dir = path.split('/')[-1]
-								url = SRC_URL %('serie', 'fname', urllib.quote(dir), '')	# URL for movie name search
+								url = SRC_URL %(Prefs["apiKey"], 'serie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 								Log('Looking for match for dirname %s and size %d at %s' % (dir, p.size, url))
 								xml = self.GetFixedXML(url) # to get XML for search result
 								subtitleResponse = xml #XML.ElementFromURL(SRC_URL + basename)
