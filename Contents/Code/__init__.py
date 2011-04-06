@@ -18,9 +18,15 @@ class S4uAgentMovies(Agent.Movies):
   contributes_to = ['com.plexapp.agents.imdb']
   
   def search(self, results, media, lang):
-    results.Append(MetadataSearchResult(
-      id    = 'null',
-      score = 100  ))
+    
+    if media.primary_metadata.id is not None:
+      imdbId = media.primary_metadata.id
+      if imdbId.startswith('tt'):
+        imdbId = imdbId[2:]
+    
+    Log("Search: imdbId: %s" % imdbId)    
+    
+    results.Append(MetadataSearchResult(id = imdbId,score = 100))
     
   def update(self, metadata, media, lang):
 #    HTTP.Headers['User-agent'] = PLEX_USERAGENT
@@ -33,23 +39,61 @@ class S4uAgentMovies(Agent.Movies):
 		#			path= '/'.join(path.split('/')[:-1])
 				basename = os.path.basename(filename)
 				basename = os.path.splitext(basename)[0] #Remove filetype
+				dir = path.split('/')[-1]
+				match = False
+				#FILENAME SEARCH
 				url = SRC_URL % (Prefs["apiKey"], 'movie', 'fname', urllib.quote(basename), '')	# URL for movie name search
 				Log('Looking for match for file %s @ %s' % (basename, url))
-				subtitleResponse = GetFixedXML(url) # to get XML for search result
-				if not subtitleResponse.xpath("/xmlresult/movie"): #No match for filename, perhaps we can match the dir name.
-					dir = path.split('/')[-1]
+				subtitleResponse = GetFixedXML(url) # to get XML for search result                
+				if subtitleResponse.xpath("/xmlresult/movie"): 
+					subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+					subType = subtitleResponse.xpath('//sub/file_type')[0].text
+					match = True
+				else: #No match for filename, perhaps we can match the dir name.
+				    #DIRECTORY SEARCH
 					url = SRC_URL %(Prefs["apiKey"], 'movie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 					Log('Looking for match for dirname %s @ %s' % (dir, url))
 					subtitleResponse = GetFixedXML(url) # to get XML for search result
-#Insert more search options here.
-				if subtitleResponse.xpath("/xmlresult/movie"):
+					if subtitleResponse.xpath("/xmlresult/movie"): 
+						subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
+						subType = subtitleResponse.xpath('//sub/file_type')[0].text
+						match = True
+					else: #No direct match for dirname, trying heuristic search
+				    	#HEURISTIC SEARCH
+						if metadata.id is not None:
+							Log("Trying heuristic search")
+							url = SRC_URL % (Prefs["apiKey"], 'movie', 'imdb', metadata.id, '')
+							Log("URL: %s" % url)
+							bestScore = 0
+							bestReleaseName = ""
+							filetype = ""
+							#xmlRes = XML.ElementFromURL(url, cacheTime=60)
+							subtitleResponse = GetFixedXML(url)
+							for sub in subtitleResponse.xpath("//sub"):
+								releasename = sub.xpath("rls")[0].text
+								file = sub.xpath("download_file")[0].text
+								filetype = sub.xpath("file_type")[0].text
+					          	#Log("Releasename: %s" % releasename)
+					          	#Log("File: %s" % file)
+								score = 100 - scoreHeuristic(releasename,dir)
+								if score > bestScore:
+									bestScore = score
+									bestReleaseName = releasename
+									subUrl = file
+									subType = filetype
+								#Log("Score: %s" % score)
+							Log("Best score: %s" % bestScore)
+							Log("Releasename: %s" % bestReleaseName)
+							if bestScore > 85:
+								match = True					      
+				
+				if match:
 					Log('Yes %s matches for movie!' % subtitleResponse.xpath("//info/hits_movie")[0].text)				
-					if not subtitleResponse.xpath("//sub/download_file"):
+					if not subUrl:
 						Log('No subtitles available for language sv and the movie %s.' % (subtitleResponse.xpath("//movie/title")[0].text))
 					else:
 						Log('Yes %s subs for the movie %s will try to download the first match.' % (subtitleResponse.xpath("//info/hits_movie_sub")[0].text, subtitleResponse.xpath("//movie/title")[0].text))
-						subUrl = subtitleResponse.xpath('//sub/download_file')[0].text
-						subType = subtitleResponse.xpath('//sub/file_type')[0].text
+						
 						fileName = path + "/" + basename + ".sv." + subType
 						Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
 						GetSubtitle(p, subUrl, subType, fileName, basename)
@@ -132,3 +176,8 @@ def GetSubtitle(part, subUrl, subType, fileName, basename):
 	part.subtitles[Locale.Language.Match('sv')][basename + ".sv." + subType] = Proxy.LocalFile(fileName)
 	return
 
+def scoreHeuristic(releasename,releasepath):
+    #ESTIMATE SCORE BY MATCHING RELEASENAME AND LOCAL FILENAME (DIRECTORY NAME REALLY)
+    #Log("Comparing %s with %s" % (releasename, releasepath))
+    distance = Util.LevenshteinDistance(releasename, releasepath)
+    return distance
