@@ -75,7 +75,7 @@ class S4uAgentMovies(Agent.Movies):
 								filetype = sub.xpath("file_type")[0].text
 					          	#Log("Releasename: %s" % releasename)
 					          	#Log("File: %s" % file)
-								score = 100 - scoreHeuristic(releasename,dir)
+								score = 100 - scoreHeuristic(releasename,dir,basename)
 								if score > bestScore:
 									bestScore = score
 									bestReleaseName = releasename
@@ -160,7 +160,7 @@ class S4uAgentTV(Agent.TV_Shows):
 									filetype = sub.xpath("file_type")[0].text
 												#Log("Releasename: %s" % releasename)
 												#Log("File: %s" % file)
-									score = 100 - scoreHeuristic(releasename,dir)
+									score = 100 - scoreHeuristic(releasename,dir,basename)
 									if score > bestScore:
 										bestScore = score
 										bestReleaseName = releasename
@@ -205,8 +205,11 @@ def GetSubtitle(part, subUrl, subType, fileName, basename):
 	part.subtitles[Locale.Language.Match('sv')][basename + ".sv." + subType] = Proxy.LocalFile(fileName)
 	return
 
-def scoreHeuristic(releasename,releasepath):
+def scoreHeuristic(releasename,releasepath,releasefile=""):
     #ESTIMATE SCORE BY MATCHING RELEASENAME AND LOCAL FILENAME (DIRECTORY NAME REALLY)
     #Log("Comparing %s with %s" % (releasename, releasepath))
     distance = Util.LevenshteinDistance(releasename, releasepath)
-    return distance
+    dis = Util.LevenshteinDistance(releasename, releasefile)
+    if distance < dis:
+      return distance
+    return dis
