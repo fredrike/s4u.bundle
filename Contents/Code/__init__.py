@@ -123,11 +123,11 @@ class S4uAgentTV(Agent.TV_Shows):
 							path = os.path.dirname(filename)
 							basename = os.path.basename(filename)
 							basename = os.path.splitext(basename)[0] #Remove filetype
+							dir = path.split('/')[-1]
 							url = SRC_URL % (Prefs["apiKey"], 'serie', 'fname', urllib.quote(basename), '')	# URL for movie name search
 							Log('Looking for match for file %s @ %s' % (basename, url))
 							subtitleResponse = GetFixedXML(url) # to get XML for search result
 							if not subtitleResponse.xpath("/xmlresult/serie"): #No match for filename, perhaps we can match the dir name.
-								dir = path.split('/')[-1]
 								url = SRC_URL %(Prefs["apiKey"], 'serie', 'fname', urllib.quote(dir), '')	# URL for movie name search
 								Log('Looking for match for dirname %s @ %s' % (dir, url))
 								subtitleResponse  = GetFixedXML(url) # to get XML for search result
@@ -143,8 +143,37 @@ class S4uAgentTV(Agent.TV_Shows):
 									fileName = path + "/" + basename + ".sv." + subType
 									Log('Trying to download %s of type %s for %s.S%02dE%02d'  % (subUrl, subType, media.title, int(s), int(e)))
 									GetSubtitle(p, subUrl, subType, fileName, basename)
-							else:
+							else: #No direct match for dirname, trying heuristic search
 								Log('No match for %s' % basename)
+								Log('Trying euristic search for id: %s' % media.title) #JSON.StringFromObject(p))
+								Log("Trying heuristic search")
+								url = SRC_URL % (Prefs["apiKey"], 'serie', 'title', urllib.quote(media.title), 'seanson=%d&episode=%d' % (int(s),int(e)))
+								Log("URL: %s" % url)
+								bestScore = 0
+								bestReleaseName = ""
+								filetype = ""
+								#xmlRes = XML.ElementFromURL(url, cacheTime=60)
+								subtitleResponse = GetFixedXML(url)
+								for sub in subtitleResponse.xpath("//sub"):
+									releasename = sub.xpath("rls")[0].text
+									file = sub.xpath("download_file")[0].text
+									filetype = sub.xpath("file_type")[0].text
+												#Log("Releasename: %s" % releasename)
+												#Log("File: %s" % file)
+									score = 100 - scoreHeuristic(releasename,dir)
+									if score > bestScore:
+										bestScore = score
+										bestReleaseName = releasename
+										subUrl = file
+										subType = filetype
+									#Log("Score: %s" % score)
+								Log("Best score: %s" % bestScore)
+								Log("Releasename: %s" % bestReleaseName)
+								if bestScore > 85:
+										fileName = path + "/" + basename + ".sv." + subType
+										Log('Trying to download %s of type %s and save it as %s'  % (subUrl, subType, fileName))
+										GetSubtitle(p, subUrl, subType, fileName, basename)
+					
 
 def GetFixedXML(url, isHtml=False):		# function for getting XML in the corresponding URL
 	xml = HTTP.Request(url)
