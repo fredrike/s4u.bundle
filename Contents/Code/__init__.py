@@ -147,7 +147,7 @@ class S4uAgentTV(Agent.TV_Shows):
 								Log('No match for %s' % basename)
 								Log('Trying euristic search for id: %s' % media.title) #JSON.StringFromObject(p))
 								Log("Trying heuristic search")
-								url = SRC_URL % (Prefs["apiKey"], 'serie', 'title', urllib.quote(media.title), 'seanson=%d&episode=%d' % (int(s),int(e)))
+								url = SRC_URL % (Prefs["apiKey"], 'serie', 'title', urllib.quote(media.title), 'season=%d&episode=%d' % (int(s),int(e)))
 								Log("URL: %s" % url)
 								bestScore = 0
 								bestReleaseName = ""
